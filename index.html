@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Comentários</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background-color: #0077b5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        .copy-btn {
+            background-color: #4CAF50;
+        }
+        .linkedin-btn {
+            padding: 8px 16px;
+            cursor: pointer;
+            background-color: #0077b5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        #error-message {
+            color: red;
+            display: none;
+        }
+        #content {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="error-message">Token não encontrado</div>
+    <div id="content">
+        <h1>Lista de Comentários</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Comentário</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody id="comments-table">
+            </tbody>
+        </table>
+        <a id="linkedin-link" class="linkedin-btn" target="_blank">
+            Ir para LinkedIn
+        </a>
+    </div>
+
+    <script>
+        const SPREADSHEET_ID = 'FILL_WITH_YOUR_SPREADSHEET_ID';
+        const SHEET_ID = 'FILL_WITH_YOUR_SPREADSHEET_ID';
+
+        async function getSheetData(token) {
+            try {
+                // Criamos uma Promise para lidar com o callback do JSONP
+                const jsonpPromise = new Promise((resolve, reject) => {
+                    // Nome da função callback
+                    const callbackName = 'googleSheetCallback';
+                    
+                    // Criamos uma função global para receber os dados
+                    window.google = {
+                        visualization: {
+                            Query: {
+                                setResponse: function(data) {
+                                    delete window.google;
+                                    script.remove();
+                                    resolve(data);
+                                }
+                            }
+                        }
+                    };
+                    
+                    // Criamos e adicionamos o script
+                    const script = document.createElement('script');
+                    script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_ID}`;
+                    script.onerror = (err) => {
+                        delete window.google;
+                        script.remove();
+                        reject(err);
+                    };
+                    document.body.appendChild(script);
+                });
+
+                const response = await jsonpPromise;
+                console.log('Resposta recebida:', response);
+                
+                const rows = response.table.rows.map(row => 
+                    row.c.map(cell => {
+                        if (!cell) return '';
+                        if (typeof cell.v === 'string') {
+                            return {
+                                display: cell.v.replace(/\\n/g, '<br>'),
+                                raw: cell.v.replace(/\\n/g, '\n')
+                            };
+                        }
+                        return {
+                            display: cell.v,
+                            raw: cell.v
+                        };
+                    })
+                );
+                
+                const targetRow = rows.find(row => row[2]?.raw.toString() === token);
+                if (!targetRow) return null;
+
+                return {
+                    linkedinUrl: targetRow[0].raw,
+                    comments: targetRow.slice(3).filter(cell => cell.raw)
+                };
+            } catch (error) {
+                console.error('Erro detalhado:', error);
+                console.error('Stack:', error.stack);
+                document.getElementById('error-message').textContent = 'Erro ao carregar dados. Por favor, tente novamente.';
+                document.getElementById('error-message').style.display = 'block';
+                return null;
+            }
+        }
+
+        function copyComment(index) {
+            // alert('Comentário copiado!');
+            const comments = window.commentsData;
+            navigator.clipboard.writeText(comments[index].raw);
+        }
+
+        async function init() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+
+            if (!token) {
+                document.getElementById('error-message').style.display = 'block';
+                return;
+            }
+
+            const data = await getSheetData(token);
+            
+            if (!data) {
+                document.getElementById('error-message').style.display = 'block';
+                return;
+            }
+
+            window.commentsData = data.comments;
+
+            const tableBody = document.getElementById('comments-table');
+            tableBody.innerHTML = data.comments.map((comment, index) => `
+                <tr>
+                    <td>${comment.display}</td>
+                    <td>
+                        <button class="copy-btn" onclick="copyComment(${index})">
+                            Copiar
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.getElementById('linkedin-link').href = data.linkedinUrl;
+            document.getElementById('content').style.display = 'block';
+        }
+
+        init();
+    </script>
+</body>
+</html> 
