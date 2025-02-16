@@ -69,8 +69,8 @@
     </div>
 
     <script>
-        const SPREADSHEET_ID = '10OQXquS-8kf2IUee6HYx-lz7bmHsSr1AX9_ILdZwAgg';
-        const SHEET_ID = 'Dados';
+        const SPREADSHEET_ID = 'FILL_WITH_YOUR_SPREADSHEET_ID';
+        const SHEET_ID = 'FILL_WITH_YOUR_SHEET_ID';
 
         async function getSheetData(token) {
             try {
@@ -142,8 +142,8 @@
             const comments = window.commentsData;
             navigator.clipboard.writeText(comments[index].raw)
                 .then(() => {
-                    //Redirect to the predefined link after copying the text
-                    window.location.href = document.getElementById('predefined-link').href;
+                    //Abre o link predefinido em uma nova aba após copiar o texto
+                    window.open(document.getElementById('predefined-link').href, '_blank');
                 })
                 .catch(err => {
                     console.error('Error copying:', err);
